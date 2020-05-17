@@ -13,5 +13,11 @@
 <body>
   <h1>Server Name: {{session['serverName']}}</h1>
   <div id="MapContainer"></div>
-  <button onclick="handleSubmitClick()">Submit Guess</button>
+  <button onclick="handleSubmitClick()">
+    {% if answer %}
+      Submit Answer
+    {% else %}
+      Submit Guess
+    {% endif %}
+  </button>
 </body>

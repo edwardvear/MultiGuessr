@@ -26,9 +26,9 @@ def join():
             r.sadd("rooms:" + roomname + ":players", username)
             return redirect('/guess')
         else:
-            return index()
+            return redirect('/')
     else:
-        return index()
+        return redirect('/')
 
 @app.route('/host')
 def host():
@@ -150,6 +150,8 @@ def gen_dists(guesses, answer):
     return sorted(dists, key = lambda dist: dist['dist'])
 
 def latlng_dist(latlng1, latlng2):
+    """ Haversine formula """
+
     R = 6373.0
     lat1 = math.radians(latlng1['lat'])
     lng1 = math.radians(latlng1['lng'])

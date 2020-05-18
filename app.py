@@ -1,11 +1,9 @@
-from flask import Flask, render_template, request, session, redirect, jsonify
-from flask_socketio import SocketIO
+from flask import Flask, render_template, request, session, redirect, jsonify, abort
 import redis
 
 import math
 
 app = Flask(__name__)
-socketio = SocketIO(app)
 r = redis.Redis(host='localhost', port=6379, db=0)
 
 app.secret_key = b'3298afkl;a3ha*"""fsaz'
@@ -65,7 +63,9 @@ def guess():
 
 
         if r.scard(room_key + ":guesses") == r.scard(room_key + ":players"):
-            socketio.emit('guessing_complete')
+            pass
+            # TODO finish this for automatic reloading once guessing is done
+            # socketio.emit('guessing_complete')
 
         return redirect('/results')
     else:
@@ -86,13 +86,32 @@ def answer():
     else:
         return render_template('guess.html', answer=True)
 
+@app.route('/reset_room')
+def reset_room():
+    room_key = "rooms:" + session['roomName']
+    if session['username'] != r.get(room_key + ":host").decode('utf-8'):
+        return abort(403, "Only the host can clear room data")
+    
+    guesses = [player.decode('utf-8') for player in r.smembers(room_key + ":guesses")]
+    for guess in guesses:
+        r.delete(room_key + ":guesses:" + guess)
+        r.srem(room_key + ":guesses", guess)
+
+    r.delete(room_key + ":answer")
+
+    
+    return jsonify(success=True)
+
 @app.route('/results')
 def results():
     room_key = "rooms:" + session['roomName']
     is_host  = r.get(room_key + ":host").decode('utf-8') == session['username']
+    made_guess = r.sismember(room_key + ":guesses", session['username'])
 
-    if r.exists(room_key + ":answer") and r.scard(room_key + ":guesses") == r.scard(room_key + ":players"):
-        return render_template('results.html')
+    if not made_guess:
+        return redirect('/guess')
+    elif r.exists(room_key + ":answer") and r.scard(room_key + ":guesses") == r.scard(room_key + ":players"):
+        return render_template('results.html', is_host=is_host)
     elif is_host and not r.exists(room_key + ":answer"):
         return redirect('/answer')
     else:
@@ -116,17 +135,19 @@ def result_data():
         answer_lng = float(r.hget(room_key + ":answer", "lng"))
         answer = {'lat': answer_lat, 'lng': answer_lng}
 
-        scores = gen_scores(guesses, answer)
+        dists = gen_dists(guesses, answer)
 
-        return jsonify(guesses=guesses, answer=answer, scores=scores)
+        return jsonify(guesses=guesses, answer=answer, dists=dists)
     else:
         return "No Data Yet"
 
-def gen_scores(guesses, answer):
-    scores = {}
+def gen_dists(guesses, answer):
+    dists = []
     for guess in guesses:
-        scores[guess['name']] = latlng_dist(guess, answer)
-    return scores
+        dist = { 'dist': latlng_dist(guess, answer), 'name': guess['name'] }
+        dists.append(dist);
+    
+    return sorted(dists, key = lambda dist: dist['dist'])
 
 def latlng_dist(latlng1, latlng2):
     R = 6373.0
@@ -142,6 +163,3 @@ def latlng_dist(latlng1, latlng2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c * 0.621371 # The last value converts to miles
 
-
-if __name__ == '__main__':
-    socketio.run(app)

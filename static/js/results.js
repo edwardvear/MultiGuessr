@@ -6,16 +6,14 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 var req = new XMLHttpRequest();
-req.addEventListener("load", loadMarkers);
+req.addEventListener("load", loadResults);
 req.open("GET", "results/data");
 req.send();
 
-function loadMarkers() {
-  console.log("Got Data!");
-  console.log(this.responseText);
+function loadResults() {
   var resp = JSON.parse(this.responseText);
+  console.log(resp);
   var guesses = resp.guesses;
-  console.log(guesses[0]);
   for (var guess of guesses) {
     let latlng = L.latLng(guess.lat, guess.lng);
     L.marker(latlng)
@@ -37,26 +35,22 @@ function loadMarkers() {
         }
       )
       .addTo(map);
-}
-
-
-function handleMapClick(e) {
-  if (marker) {
-    marker.setLatLng(e.latlng);
-  } else {
-    marker = L.marker(e.latlng).addTo(map);
+  
+  // Scoreboard
+  var scoreboard = document.getElementById('Scoreboard')
+  for (dist of resp.dists) {
+    var row = scoreboard.insertRow(-1);
+    var distance = row.insertCell(0);
+    var name = row.insertCell(1);
+    distance.innerHTML = dist.dist;
+    name.innerHTML = dist.name;
   }
 }
 
-function handleSubmitClick() {
-  if (marker) {
-    let url = window.location.href;
-    lat = marker.getLatLng().lat;
-    lng = marker.getLatLng().lng;
-    let new_url = url + '?lat=' + lat + '&lng=' + lng;
-    // Maybe use url.location.replace to prevent player from going back after submitting
-    window.location.replace(new_url);
-  } else {
-    console.log("Need to place a marker");
-  }
+function handleButtonClick() {
+  var req = new XMLHttpRequest();
+  req.addEventListener("load", () => { window.location.replace("guess"); });
+  req.open("GET", "reset_room");
+  req.send();
+  console.log("Reset room");
 }

@@ -13,4 +13,9 @@
 <body>
   <h1>Room Name: {{session['roomName']}}</h1>
   <div id="MapContainer"></div>
+  <table id="Scoreboard">
+  </table>
+  {% if is_host %}
+  <button onclick="handleButtonClick()">Continue to Next Round</button>
+  {% endif %}
 </body>

@@ -47,9 +47,9 @@ function loadResults() {
   }
 }
 
-function handleButtonClick() {
+function handleResetClick() {
   var req = new XMLHttpRequest();
-  req.addEventListener("load", () => { window.location.replace("guess"); });
+  req.addEventListener("load", () => { window.location = window.location.pathname; });
   req.open("GET", "reset_room");
   req.send();
   console.log("Reset room");

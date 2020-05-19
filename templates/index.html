@@ -1,8 +1,11 @@
 <!doctype html>
 <title>Main Page</title>
+{% if error %}
+<h2>{{error}}</h2>
+{% endif %}
 <form>
   <input type="text" name="username" value="Username">
-  <input type="text" name="roomName" value="Room Name">
-  <button formaction="/join">Join Game</button>
-  <button formaction="/host">Host Game</button>
+  <input type="text" name="roomname" value="Room Name">
+  <button formaction="/" name="host_or_join" value="join">Join Game</button>
+  <button formaction="/" name="host_or_join" value="host">Host Game</button>
 </form>

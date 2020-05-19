@@ -21,9 +21,17 @@ function handleSubmitClick() {
     lat = marker.getLatLng().lat;
     lng = marker.getLatLng().lng;
     let new_url = url + '?lat=' + lat + '&lng=' + lng;
-    // Maybe use url.location.replace to prevent player from going back after submitting
     window.location.replace(new_url);
   } else {
+    // TODO create header or something to let the player know
     console.log("Need to place a marker");
   }
+}
+
+function handleDeleteClick() {
+  var req = new XMLHttpRequest();
+  req.addEventListener("load", () => { window.location.replace(""); });
+  req.open("GET", "delete_room");
+  req.send();
+  console.log("Deleted room");
 }

@@ -9,137 +9,154 @@ r = redis.from_url(os.environ['REDIS_URL'])
 app.secret_key = os.environ['SECRET_KEY']
 
 @app.route('/')
+def root():
+    return index()
+
 def index():
-    if 'roomName' in session and r.sismember('rooms', session['roomName']):
-        return redirect('/guess')
-    return render_template('index.html')
-
-@app.route('/join')
-def join():
-    if 'roomName' in session and r.sismember('rooms', session['roomName']):
-        return redirect('/guess')
-    elif 'username' in request.args and 'roomName' in request.args:
-        if r.sismember('rooms', request.args['roomName']):
-            username, roomname = (request.args['username'], request.args['roomName'])
-            session['username'] = username
-            session['roomName'] = roomname
-            r.sadd("rooms:" + roomname + ":players", username)
-            return redirect('/guess')
+    if 'roomname' in session and 'username' in session:
+        if not r.sismember('rooms', session['roomname']):
+            del session['roomname']
+            del session['username']
+            return render_template('index.html', error="That Room no longer exists!")
         else:
-            return redirect('/')
-    else:
-        return redirect('/')
-
-@app.route('/host')
-def host():
-    if 'roomName' in session and r.sismember('rooms', session['roomName']):
-        return redirect('/guess')
-    elif 'username' in request.args and 'roomName' in request.args:
-        username, roomname = request.args['username'], request.args['roomName']
+            player = Player(session['roomname'], session['username'])
+            return game(player)
+    elif all(field in request.args for field in ("username", "roomname", "host_or_join")):
+        roomname, username = (request.args['roomname'], request.args['username'])
+        session['roomname'] = roomname
         session['username'] = username
-        session['roomName'] = roomname
 
+        if request.args['host_or_join'] == 'host':
+            return host(roomname, username)
+        elif request.args['host_or_join'] == 'join':
+            return join(roomname, username)
+    else:
+        return render_template('index.html')
+
+class Player():
+    def __init__(self, roomname, username):
+        self.roomname = roomname
+        self.username = username
+        self.is_host = r.get("rooms:" + roomname + ":host").decode('utf-8') == session['username']
+        self.already_guessed = r.sismember("rooms:" + roomname + ":guesses", username)
+
+def join(roomname, username):
+    if r.sismember('rooms', roomname):
+        r.sadd("rooms:" + roomname + ":players", username)
+        return redirect('/')
+    else:
+        return render_template('index.html', error="That Room doesn't exist!")
+
+def host(roomname, username):
+    if r.sismember('rooms', roomname):
+        return render_template('index.html', error="That Room already esists!")
+    else:
         r.sadd("rooms", roomname)
         r.sadd("rooms:" + roomname + ":players", username)
         r.set("rooms:" + roomname + ":host", username)
+        return redirect('/')
 
-        return redirect('/guess')
-    else:
-        return index()
-
-@app.route('/guess')
-def guess():
-    room_key = "rooms:" + session['roomName']
-    guess_key = room_key + ":guesses:" + session['username']
-    made_guess = r.sismember(room_key + ":guesses", session['username'])
-    
-    if made_guess:
-        return redirect('/results')
+def game(player):
+    if player.is_host and player.already_guessed and not r.exists("rooms:" + player.roomname + ":answer"):
+        return answer(player)
+    elif player.already_guessed:
+        return results(player)
     elif 'lat' in request.args and 'lng' in request.args:
         guess = {'lat': request.args['lat'], 'lng': request.args['lng']}
 
-        r.sadd(room_key + ":guesses", session['username'])
-        r.hmset(guess_key, guess)
+        r.sadd("rooms:" + player.roomname + ":guesses", player.username)
+        r.hmset("rooms:" + player.roomname + ":guesses:" + player.username, guess)
 
-
-        if r.scard(room_key + ":guesses") == r.scard(room_key + ":players"):
+        num_players = r.scard("rooms:" + player.roomname + ":players")
+        num_guesses = r.scard("rooms:" + player.roomname + ":guesses")
+        if num_players == num_guesses:
             pass
             # TODO finish this for automatic reloading once guessing is done
             # socketio.emit('guessing_complete')
 
-        return redirect('/results')
+        return redirect('/')
     else:
-        return render_template('guess.html')
+        return render_template('game.html', is_host=player.is_host)
 
-@app.route('/answer')
-def answer():
-    room_key = "rooms:" + session['roomName']
-    is_host  = r.get(room_key + ":host").decode('utf-8') == session['username']
-
-    if not is_host:
-        return redirect('/results')
-    elif 'lat' in request.args and 'lng' in request.args:
+def answer(player):
+    room_key = "rooms:" + player.roomname
+    if 'lat' in request.args and 'lng' in request.args:
         answer = {'lat': request.args['lat'], 'lng': request.args['lng']}
 
         r.hmset(room_key + ":answer", answer)
-        return redirect('/results')
+        return results(player)
     else:
-        return render_template('guess.html', answer=True)
+        return render_template('game.html', answer=True)
 
-@app.route('/reset_room')
-def reset_room():
-    room_key = "rooms:" + session['roomName']
-    if session['username'] != r.get(room_key + ":host").decode('utf-8'):
-        return abort(403, "Only the host can clear room data")
-    
-    guesses = [player.decode('utf-8') for player in r.smembers(room_key + ":guesses")]
-    for guess in guesses:
-        r.delete(room_key + ":guesses:" + guess)
-        r.srem(room_key + ":guesses", guess)
-
-    r.delete(room_key + ":answer")
-
-    
-    return jsonify(success=True)
-
-@app.route('/results')
-def results():
-    room_key = "rooms:" + session['roomName']
-    is_host  = r.get(room_key + ":host").decode('utf-8') == session['username']
-    made_guess = r.sismember(room_key + ":guesses", session['username'])
-
-    if not made_guess:
-        return redirect('/guess')
-    elif r.exists(room_key + ":answer") and r.scard(room_key + ":guesses") == r.scard(room_key + ":players"):
-        return render_template('results.html', is_host=is_host)
-    elif is_host and not r.exists(room_key + ":answer"):
-        return redirect('/answer')
+def results(player):
+    if results_ready():
+        return render_template('results.html', is_host=player.is_host)
     else:
         return render_template('waiting.html')
+
+def results_ready():
+    roomname = session['roomname']
+    answer_exists = r.exists("rooms:" + roomname + ":answer") 
+    num_players = r.scard("rooms:" + roomname + ":players")
+    num_guesses = r.scard("rooms:" + roomname + ":guesses")
+
+    return answer_exists and num_players == num_guesses
 
 @app.route('/results/data')
 def result_data():
     """ If the result data is ready, sends it as json """
-
-    room_key = "rooms:" + session['roomName']
-    if r.exists(room_key + ":answer") and r.scard(room_key + ":guesses") == r.scard(room_key + ":players"):
-        players = [player.decode('utf-8') for player in r.smembers(room_key + ":players")]
+    roomname = session['roomname']
+    if results_ready():
+        players = [player.decode('utf-8') for player in r.smembers("rooms:" + roomname + ":players")]
         guesses = []
         for player in players:
-            lat = float(r.hget(room_key + ":guesses:" + player, "lat"))
-            lng = float(r.hget(room_key + ":guesses:" + player, "lng"))
+            lat = float(r.hget("rooms:" + roomname + ":guesses:" + player, "lat"))
+            lng = float(r.hget("rooms:" + roomname + ":guesses:" + player, "lng"))
             guess = { 'name': player, 'lat': lat, 'lng': lng }
             guesses.append(guess)
 
-        answer_lat = float(r.hget(room_key + ":answer", "lat"))
-        answer_lng = float(r.hget(room_key + ":answer", "lng"))
+        answer_lat = float(r.hget("rooms:" + roomname + ":answer", "lat"))
+        answer_lng = float(r.hget("rooms:" + roomname + ":answer", "lng"))
         answer = {'lat': answer_lat, 'lng': answer_lng}
 
         dists = gen_dists(guesses, answer)
-
+        
         return jsonify(guesses=guesses, answer=answer, dists=dists)
     else:
         return "No Data Yet"
+
+@app.route('/reset_room')
+def reset_room():
+    roomname, username = (session['roomname'], session['username'])
+    if username != r.get("rooms:" + roomname + ":host").decode('utf-8'):
+        return abort(403, "Only the host can clear room data")
+    
+    players = [player.decode('utf-8') for player in r.smembers("rooms:" + roomname + ":guesses")]
+    for player in players:
+        r.delete("rooms:" + roomname + ":guesses:" + player)
+        r.srem("rooms:" + roomname + ":guesses", player)
+    r.delete("rooms:" + roomname + ":answer")
+    
+    return jsonify(success=True)
+
+@app.route('/delete_room')
+def delete_room():
+    roomname, username = (session['roomname'], session['username'])
+    if username != r.get("rooms:" + roomname + ":host").decode('utf-8'):
+        return abort(403, "Only the host can clear room data")
+
+    players = [player.decode('utf-8') for player in r.smembers("rooms:" + roomname + ":guesses")]
+    for player in players:
+        r.delete("rooms:" + roomname + ":guesses:" + player)
+        r.srem("rooms:" + roomname + ":guesses", player)
+    r.delete("rooms:" + roomname + ":players")
+    r.delete("rooms:" + roomname + ":guesses")
+    r.delete("rooms:" + roomname + ":answer")
+    r.delete("rooms:" + roomname + ":host")
+    r.srem("rooms", roomname)
+
+    return jsonify(success=True)
+
 
 def gen_dists(guesses, answer):
     dists = []

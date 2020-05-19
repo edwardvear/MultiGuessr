@@ -1,6 +1,6 @@
 from multiguessr import app, r
-from flask import session, jsonify, abort
-from multiguessr.views import index, join, host, game, answer, results
+from flask import session, request, jsonify, abort
+from multiguessr.views import index, join, host, game, results, Player
 from multiguessr.result_utils import results_ready, gen_dists
 
 
@@ -9,6 +9,22 @@ def root():
     """ Main endpoint """
 
     return index()
+
+@app.route('/submit_guess')
+def submit_guess():
+    """ Submits a guess or answer """
+
+    player = Player(session['roomname'], session['username'])
+    guess = {'lat': request.args['lat'], 'lng': request.args['lng']}
+    if player.is_host and player.already_guessed and not r.exists("rooms:" + player.roomname + ":answer"):
+        r.hmset("rooms:" + player.roomname + ":answer", guess)
+        return jsonify(success=True)
+    elif not player.already_guessed:
+        r.sadd("rooms:" + player.roomname + ":guesses", player.username)
+        r.hmset("rooms:" + player.roomname + ":guesses:" + player.username, guess)
+        return jsonify(success=True)
+    else:
+        return abort(403, "You have already submitted a guess")
 
 @app.route('/reset_room')
 def reset_room():
@@ -77,3 +93,4 @@ def result_data():
         return jsonify(guesses=guesses, answer=answer, dists=dists)
     else:
         return "No Data Yet"
+

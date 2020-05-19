@@ -58,40 +58,11 @@ def game(player):
     """ Handles user guessing """
 
     if player.is_host and player.already_guessed and not r.exists("rooms:" + player.roomname + ":answer"):
-        return answer(player)
+        return render_template('game.html', answer=True)
     elif player.already_guessed:
         return results(player)
-    elif 'lat' in request.args and 'lng' in request.args:
-        guess = {'lat': request.args['lat'], 'lng': request.args['lng']}
-
-        r.sadd("rooms:" + player.roomname + ":guesses", player.username)
-        r.hmset("rooms:" + player.roomname + ":guesses:" + player.username, guess)
-
-        if results_ready():
-            pass
-            # TODO finish this for automatic reloading once the final guess/answer is made
-            # socketio.emit('guessing_complete')
-
-        return redirect('/')
     else:
         return render_template('game.html', is_host=player.is_host)
-
-def answer(player):
-    """ Lets the host put in a ground truth value for scoring. """
-
-    room_key = "rooms:" + player.roomname
-    if 'lat' in request.args and 'lng' in request.args:
-        answer = {'lat': request.args['lat'], 'lng': request.args['lng']}
-
-        r.hmset(room_key + ":answer", answer)
-        if results_ready():
-            pass
-            # TODO finish this for automatic reloading once the final guess/answer is made
-            # socketio.emit('guessing_complete')
-
-        return results(player)
-    else:
-        return render_template('game.html', answer=True)
 
 def results(player):
     """ Shows either a waiting page or the results for the round """
@@ -100,3 +71,4 @@ def results(player):
         return render_template('results.html', is_host=player.is_host)
     else:
         return render_template('waiting.html')
+

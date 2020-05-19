@@ -17,11 +17,14 @@ function handleMapClick(e) {
 
 function handleSubmitClick() {
   if (marker) {
-    let url = window.location.href;
     lat = marker.getLatLng().lat;
     lng = marker.getLatLng().lng;
-    let new_url = url + '?lat=' + lat + '&lng=' + lng;
-    window.location.replace(new_url);
+    let request_url = "submit_guess" + '?lat=' + lat + '&lng=' + lng;
+
+    var req = new XMLHttpRequest();
+    req.addEventListener("load", () => { window.location = window.location.pathname; });
+    req.open("GET", request_url);
+    req.send();
   } else {
     // TODO create header or something to let the player know
     console.log("Need to place a marker");
@@ -30,7 +33,7 @@ function handleSubmitClick() {
 
 function handleLeaveClick() {
   var req = new XMLHttpRequest();
-  req.addEventListener("load", () => { window.location.replace(""); });
+  req.addEventListener("load", () => { window.location = window.location.pathname; });
   req.open("GET", "leave_room");
   req.send();
 }

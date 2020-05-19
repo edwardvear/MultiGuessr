@@ -26,23 +26,24 @@ def reset_room():
     
     return jsonify(success=True)
 
-@app.route('/delete_room')
-def delete_room():
-    """ Allows a host to delete their room. """
+@app.route('/leave_room')
+def leave_room():
+    """ Allows a player to leave their room. If they are the host, deletes the room """
 
     roomname, username = (session['roomname'], session['username'])
-    if username != r.get("rooms:" + roomname + ":host").decode('utf-8'):
-        return abort(403, "Only the host can clear room data")
+    del session['roomname']
+    del session['username']
 
-    players = [player.decode('utf-8') for player in r.smembers("rooms:" + roomname + ":guesses")]
-    for player in players:
-        r.delete("rooms:" + roomname + ":guesses:" + player)
-        r.srem("rooms:" + roomname + ":guesses", player)
-    r.delete("rooms:" + roomname + ":players")
-    r.delete("rooms:" + roomname + ":guesses")
-    r.delete("rooms:" + roomname + ":answer")
-    r.delete("rooms:" + roomname + ":host")
-    r.srem("rooms", roomname)
+    if username == r.get("rooms:" + roomname + ":host").decode('utf-8'):
+        players = [player.decode('utf-8') for player in r.smembers("rooms:" + roomname + ":guesses")]
+        for player in players:
+            r.delete("rooms:" + roomname + ":guesses:" + player)
+            r.srem("rooms:" + roomname + ":guesses", player)
+        r.delete("rooms:" + roomname + ":players")
+        r.delete("rooms:" + roomname + ":guesses")
+        r.delete("rooms:" + roomname + ":answer")
+        r.delete("rooms:" + roomname + ":host")
+        r.srem("rooms", roomname)
 
     return jsonify(success=True)
 

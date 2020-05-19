@@ -28,10 +28,9 @@ function handleSubmitClick() {
   }
 }
 
-function handleDeleteClick() {
+function handleLeaveClick() {
   var req = new XMLHttpRequest();
   req.addEventListener("load", () => { window.location.replace(""); });
-  req.open("GET", "delete_room");
+  req.open("GET", "leave_room");
   req.send();
-  console.log("Deleted room");
 }

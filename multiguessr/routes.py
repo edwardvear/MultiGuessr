@@ -34,6 +34,13 @@ def leave_room():
     del session['roomname']
     del session['username']
 
+    # Remove self from room
+    if r.sismember("rooms:" + roomname + ":guesses"):
+        r.srem("rooms:" + roomname + ":guesses:", username)
+        r.delete("rooms:" + roomname + ":guesses:" + username)
+    r.srem("rooms:" + roomname + ":players", username)
+
+    # If host, clear the rest of the data
     if username == r.get("rooms:" + roomname + ":host").decode('utf-8'):
         players = [player.decode('utf-8') for player in r.smembers("rooms:" + roomname + ":guesses")]
         for player in players:

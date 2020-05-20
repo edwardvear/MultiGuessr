@@ -22,14 +22,14 @@ def index():
         else:
             player = Player(session['roomname'], session['username'])
             return game(player)
-    elif all(field in request.args for field in ("username", "roomname", "host_or_join")):
-        roomname, username = (request.args['roomname'], request.args['username'])
+    elif all(field in request.form for field in ("username", "roomname", "host_or_join")):
+        roomname, username = (request.form['roomname'], request.form['username'])
         session['roomname'] = roomname
         session['username'] = username
 
-        if request.args['host_or_join'] == 'host':
+        if request.form['host_or_join'] == 'host':
             return host(roomname, username)
-        elif request.args['host_or_join'] == 'join':
+        elif request.form['host_or_join'] == 'join':
             return join(roomname, username)
     else:
         return render_template('index.html')

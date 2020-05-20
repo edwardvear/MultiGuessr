@@ -19,12 +19,12 @@ function handleSubmitClick() {
   if (marker) {
     lat = marker.getLatLng().lat;
     lng = marker.getLatLng().lng;
-    let request_url = "submit_guess" + '?lat=' + lat + '&lng=' + lng;
 
     var req = new XMLHttpRequest();
     req.addEventListener("load", () => { window.location = window.location.pathname; });
-    req.open("GET", request_url);
-    req.send();
+    req.open("POST", "submit_guess");
+    req.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    req.send("lat=" + lat + "&lng=" + lng);
   } else {
     // TODO create header or something to let the player know
     console.log("Need to place a marker");

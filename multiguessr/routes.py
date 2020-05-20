@@ -4,18 +4,18 @@ from multiguessr.views import index, join, host, game, results, Player
 from multiguessr.result_utils import results_ready, gen_dists
 
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def root():
     """ Main endpoint """
 
     return index()
 
-@app.route('/submit_guess')
+@app.route('/submit_guess', methods=['GET', 'POST'])
 def submit_guess():
     """ Submits a guess or answer """
 
     player = Player(session['roomname'], session['username'])
-    guess = {'lat': request.args['lat'], 'lng': request.args['lng']}
+    guess = { 'lat': request.form['lat'], 'lng': request.form['lng'] }
     if player.is_host and player.already_guessed and not r.exists("rooms:" + player.roomname + ":answer"):
         r.hmset("rooms:" + player.roomname + ":answer", guess)
         return jsonify(success=True)

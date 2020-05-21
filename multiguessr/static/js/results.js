@@ -42,7 +42,7 @@ function loadResults() {
     var row = scoreboard.insertRow(-1);
     var distance = row.insertCell(0);
     var name = row.insertCell(1);
-    distance.innerHTML = dist.dist;
+    distance.innerHTML = dist.dist.toFixed(2);
     name.innerHTML = dist.name;
   }
 }
@@ -53,4 +53,13 @@ function handleResetClick() {
   req.open("GET", "reset_room");
   req.send();
   console.log("Reset room");
+}
+
+function setupSocket() {
+  let roomname = document.getElementById("roomname").value;
+  const socket = io('/' + roomname).connect({transports: ['websocket']});
+  socket.on('reset_room', function() {
+    console.log("Got reset");
+    location.reload();
+  });
 }

@@ -1,5 +1,5 @@
 from multiguessr import app, r
-from multiguessr.result_utils import results_ready, gen_dists, latlng_dist
+from multiguessr.result_utils import results_ready, gen_dists
 from flask import Flask, render_template, request, session, redirect
 
 class Player():

@@ -1,4 +1,4 @@
-from multiguessr import app, r
+from multiguessr import app, r, socketio
 from flask import session, request, jsonify, abort
 from multiguessr.views import index, join, host, game, results, Player
 from multiguessr.result_utils import results_ready, gen_dists
@@ -18,10 +18,14 @@ def submit_guess():
     guess = { 'lat': request.form['lat'], 'lng': request.form['lng'] }
     if player.is_host and player.already_guessed and not r.exists("rooms:" + player.roomname + ":answer"):
         r.hmset("rooms:" + player.roomname + ":answer", guess)
+        if results_ready():
+            socketio.emit('results_ready', '', namespace=('/' + player.roomname))
         return jsonify(success=True)
     elif not player.already_guessed:
         r.sadd("rooms:" + player.roomname + ":guesses", player.username)
         r.hmset("rooms:" + player.roomname + ":guesses:" + player.username, guess)
+        if results_ready():
+            socketio.emit('results_ready', '', namespace=('/' + player.roomname))
         return jsonify(success=True)
     else:
         return abort(403, "You have already submitted a guess")
@@ -39,6 +43,7 @@ def reset_room():
         r.delete("rooms:" + roomname + ":guesses:" + player)
         r.srem("rooms:" + roomname + ":guesses", player)
     r.delete("rooms:" + roomname + ":answer")
+    socketio.emit('reset_room', '', namespace=('/' + roomname))
     
     return jsonify(success=True)
 
@@ -51,7 +56,7 @@ def leave_room():
     del session['username']
 
     # Remove self from room
-    if r.sismember("rooms:" + roomname + ":guesses"):
+    if r.sismember("rooms:" + roomname + ":guesses", username):
         r.srem("rooms:" + roomname + ":guesses:", username)
         r.delete("rooms:" + roomname + ":guesses:" + username)
     r.srem("rooms:" + roomname + ":players", username)

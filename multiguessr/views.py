@@ -24,8 +24,6 @@ def index():
             return game(player)
     elif all(field in request.form for field in ("username", "roomname", "host_or_join")):
         roomname, username = (request.form['roomname'], request.form['username'])
-        session['roomname'] = roomname
-        session['username'] = username
 
         if request.form['host_or_join'] == 'host':
             return host(roomname, username)
@@ -37,11 +35,16 @@ def index():
 def join(roomname, username):
     """ Adds the given username to the room if it exists. """
 
-    if r.sismember('rooms', roomname):
+    if r.sismember('rooms', roomname) and not r.sismember('rooms:' + roomname + ':players', username):
+        session['roomname'] = roomname
+        session['username'] = username
+
         r.sadd("rooms:" + roomname + ":players", username)
         return redirect('/')
-    else:
+    elif not r.sismember('rooms', roomname):
         return render_template('index.html', error="That Room doesn't exist!")
+    else:
+        return render_template('index.html', error="That username is already in use in that room!")
 
 def host(roomname, username):
     """ If the room doesn't already exists, creates it and adds the given username as host. """
@@ -49,6 +52,9 @@ def host(roomname, username):
     if r.sismember('rooms', roomname):
         return render_template('index.html', error="That Room already esists!")
     else:
+        session['roomname'] = roomname
+        session['username'] = username
+
         r.sadd("rooms", roomname)
         r.sadd("rooms:" + roomname + ":players", username)
         r.set("rooms:" + roomname + ":host", username)

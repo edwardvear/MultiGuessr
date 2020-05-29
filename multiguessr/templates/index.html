@@ -1,11 +1,19 @@
 <!doctype html>
-<title>Main Page</title>
+<head>
+  <title>Main Page</title>
+  <link rel="stylesheet" href="/static/css/index.css"/>
+</head>
+<body>
 {% if error %}
-<h2>{{error}}</h2>
+<h2 class="error">{{error}}</h2>
 {% endif %}
+<div id="content">
+  <h1>GeoGuessr</h1>
 <form>
-  <input type="text" name="username" value="Username">
-  <input type="text" name="roomname" value="Room Name">
+  <input type="text" name="username" placeholder="Username">
+  <input type="text" name="roomname" placeholder="Room Name">
   <button formaction="/" formmethod="POST" name="host_or_join" value="join">Join Game</button>
   <button formaction="/" formmethod="POST" name="host_or_join" value="host">Host Game</button>
 </form>
+</div>
+</body>

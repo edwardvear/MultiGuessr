@@ -1,1 +1,1 @@
-web: gunicorn --worker-class eventlet -w 2 multiguessr:app
+web: gunicorn --worker-class eventlet -w 1 multiguessr:app
